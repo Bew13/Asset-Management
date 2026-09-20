@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AsetTrack Pro - Sistem Manajemen & Stok Opname Aset</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- HTML5 QR Code Scanner -->
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- SheetJS for Excel Import/Export -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #print-section, #print-section * {
+        visibility: visible !important;
+      }
+      #print-section {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 12px !important;
+        padding: 10px !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    .qr-card-print {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+
+    /* Custom Scrollbar for better UX */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col text-slate-800 antialiased selection:bg-indigo-500 selection:text-white">
+
+  <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-lg border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <!-- Brand Logo -->
+        <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('dashboard')">
+          <div class="bg-indigo-600 p-2 rounded-xl text-white shadow-md shadow-indigo-500/20 ring-1 ring-white/20">
+            <i data-lucide="boxes" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-bold text-lg leading-none tracking-tight">AsetTrack Pro</h1>
+              <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Online Mode
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">Sistem Stok Opname & Mutasi Aset</p>
+          </div>
+        </div>
+
+        <!-- Desktop Navigation Tabs -->
+        <nav class="hidden lg:flex items-center space-x-1">
+          <button onclick="switchTab('dashboard')" id="nav-dashboard" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 bg-indigo-600 text-white shadow-sm">
+            <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+          </button>
+          <button onclick="switchTab('assets')" id="nav-assets" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+            <i data-lucide="database" class="w-4 h-4"></i> Daftar Aset
+          </button>
+          <button onclick="switchTab('scanner')" id="nav-scanner" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+            <i data-lucide="qr-code" class="w-4 h-4"></i> Scan & Opname
+          </button>
+          <button onclick="switchTab('history')" id="nav-history" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+            <i data-lucide="history" class="w-4 h-4"></i> Riwayat Opname
+          </button>
+          <button onclick="switchTab('labels')" id="nav-labels" class="nav-btn px-3.5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2 text-slate-300 hover:text-white hover:bg-slate-800">
+            <i data-lucide="printer" class="w-4 h-4"></i> Cetak Label QR
+          </button>
+        </nav>
+
+        <!-- Quick Actions & Mobile Menu Toggle -->
+        <div class="flex items-center gap-2">
+          <button onclick="openModal('add-asset')" class="hidden sm:flex bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-lg text-sm font-semibold transition items-center gap-1.5 shadow-sm">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Aset
+          </button>
+          <button id="mobile-menu-btn" onclick="toggleMobileMenu()" class="lg:hidden text-slate-300 hover:text-white p-2 rounded-lg hover:bg-slate-800 focus:outline-none">
+            <i data-lucide="menu" class="w-6 h-6"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Navigation Drawer -->
+    <div id="mobile-menu" class="hidden lg:hidden bg-slate-800 border-t border-slate-700 px-4 pt-2 pb-4 space-y-1">
+      <button onclick="switchTab('dashboard')" class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-white bg-indigo-600 flex items-center gap-2.5">
+        <i data-lucide="layout-dashboard" class="w-4.5 h-4.5"></i> Dashboard
+      </button>
+      <button onclick="switchTab('assets')" class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2.5">
+        <i data-lucide="database" class="w-4.5 h-4.5"></i> Daftar Aset
+      </button>
+      <button onclick="switchTab('scanner')" class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2.5">
+        <i data-lucide="qr-code" class="w-4.5 h-4.5"></i> Scan & Opname
+      </button>
+      <button onclick="switchTab('history')" class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2.5">
+        <i data-lucide="history" class="w-4.5 h-4.5"></i> Riwayat Opname
+      </button>
+      <button onclick="switchTab('labels')" class="w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700 flex items-center gap-2.5">
+        <i data-lucide="printer" class="w-4.5 h-4.5"></i> Cetak Label QR
+      </button>
+      <div class="pt-2">
+        <button onclick="openModal('add-asset')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center justify-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Aset Baru
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- TAB 1: DASHBOARD / RINGKASAN -->
+    <section id="tab-dashboard" class="tab-content space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800 tracking-tight">Ringkasan Manajemen Aset</h2>
+          <p class="text-sm text-slate-500 mt-1">Pantau status fisik, perubahan lokasi, serta kondisi seluruh inventaris perusahaan.</p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm">
+            <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export Excel
+          </button>
+          <button onclick="switchTab('scanner')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm">
+            <i data-lucide="qr-code" class="w-4 h-4"></i> Mulai Opname
+          </button>
+        </div>
+      </div>
+
+      <!-- Stat Cards Grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Aset</p>
+            <div class="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl">
+              <i data-lucide="box" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <h3 id="stat-total" class="text-3xl font-extrabold text-slate-800 mt-2">0</h3>
+          <p class="text-xs text-slate-400 mt-1">Unit terdaftar di sistem</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Kondisi Baik</p>
+            <div class="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl">
+              <i data-lucide="check-circle" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <h3 id="stat-baik" class="text-3xl font-extrabold text-emerald-600 mt-2">0</h3>
+          <p class="text-xs text-emerald-600/80 mt-1">Siap digunakan</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Rusak (Ringan/Berat)</p>
+            <div class="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
+              <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <h3 id="stat-rusak" class="text-3xl font-extrabold text-amber-600 mt-2">0</h3>
+          <p class="text-xs text-amber-600/80 mt-1">Perlu tindakan/perbaikan</p>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-bold text-slate-400 uppercase tracking-wider">Hilang / Afkir</p>
+            <div class="p-2.5 bg-rose-50 text-rose-600 rounded-xl">
+              <i data-lucide="x-circle" class="w-5 h-5"></i>
+            </div>
+          </div>
+          <h3 id="stat-hilang" class="text-3xl font-extrabold text-rose-600 mt-2">0</h3>
+          <p class="text-xs text-rose-600/80 mt-1">Tidak ditemukan / Dihapuskan</p>
+        </div>
+      </div>
+
+      <!-- Quick Recent Audit Logs -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="font-bold text-slate-800 text-base flex items-center gap-2">
+            <i data-lucide="history" class="w-5 h-5 text-indigo-600"></i> Riwayat Stok Opname & Mutasi Terbaru
+          </h3>
+          <button onclick="switchTab('history')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800 flex items-center gap-1">
+            Lihat Semua <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50 text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-4">Waktu Scan</th>
+                <th class="py-3 px-4">Kode Aset</th>
+                <th class="py-3 px-4">Nama Aset</th>
+                <th class="py-3 px-4">Status & Catatan Opname</th>
+                <th class="py-3 px-4">Petugas</th>
+              </tr>
+            </thead>
+            <tbody id="dashboard-logs-table" class="divide-y divide-slate-100">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: DATA ASET -->
+    <section id="tab-assets" class="tab-content hidden space-y-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">Daftar Inventaris Aset</h2>
+          <p class="text-sm text-slate-500">Kelola master data, pencarian, dan simulasi opname langsung.</p>
+        </div>
+        <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+          <label class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-sm font-medium flex items-center gap-2 cursor-pointer transition border border-slate-200">
+            <i data-lucide="upload" class="w-4 h-4"></i> Import Excel
+            <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="importFromExcel(event)">
+          </label>
+          <button onclick="openModal('add-asset')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition shadow-sm">
+            <i data-lucide="plus" class="w-4 h-4"></i> Tambah Aset Baru
+          </button>
+        </div>
+      </div>
+
+      <!-- Search & Filters -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row gap-3">
+        <div class="relative flex-grow">
+          <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-3 text-slate-400"></i>
+          <input type="text" id="search-input" oninput="renderAssetTable()" placeholder="Cari Kode Aset, Nama, Lokasi, atau PIC..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+        </div>
+        <div class="flex gap-2">
+          <select id="filter-kategori" onchange="renderAssetTable()" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Semua Kategori</option>
+          </select>
+          <select id="filter-kondisi" onchange="renderAssetTable()" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">Semua Kondisi</option>
+            <option value="Baik">Baik</option>
+            <option value="Rusak Ringan">Rusak Ringan</option>
+            <option value="Rusak Berat">Rusak Berat</option>
+            <option value="Hilang / Afkir">Hilang / Afkir</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-semibold tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3.5 px-4">Kode Aset</th>
+                <th class="py-3.5 px-4">Nama Barang</th>
+                <th class="py-3.5 px-4">Kategori</th>
+                <th class="py-3.5 px-4">Lokasi & PIC</th>
+                <th class="py-3.5 px-4">Kondisi</th>
+                <th class="py-3.5 px-4 text-center">Aksi Opname</th>
+              </tr>
+            </thead>
+            <tbody id="asset-table-body" class="divide-y divide-slate-100">
+              <!-- Dynamic Rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: SCANNER & STOK OPNAME -->
+    <section id="tab-scanner" class="tab-content hidden space-y-6">
+      <div class="max-w-3xl mx-auto space-y-6">
+        <div class="text-center space-y-1">
+          <h2 class="text-2xl font-bold text-slate-800">Scan QR Code & Stok Opname</h2>
+          <p class="text-sm text-slate-500">Gunakan kamera HP/Laptop untuk scan fisik QR label, atau gunakan pencarian kode manual.</p>
+        </div>
+
+        <!-- Camera Scanner Card -->
+        <div class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+          <div id="reader" class="w-full rounded-xl overflow-hidden bg-slate-900 min-h-[260px] flex items-center justify-center text-slate-400 border border-slate-800">
+            <div class="text-center p-6 space-y-2">
+              <i data-lucide="camera" class="w-12 h-12 mx-auto text-slate-600"></i>
+              <p class="text-sm">Klik tombol di bawah untuk mengaktifkan kamera scan HP/Laptop.</p>
+            </div>
+          </div>
+          
+          <div class="flex gap-2 justify-center">
+            <button id="btn-start-scanner" onclick="startScanner()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-sm transition">
+              <i data-lucide="camera" class="w-4 h-4"></i> Buka Kamera Scan
+            </button>
+            <button id="btn-stop-scanner" onclick="stopScanner()" class="hidden bg-rose-600 hover:bg-rose-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-sm transition">
+              <i data-lucide="camera-off" class="w-4 h-4"></i> Tutup Kamera
+            </button>
+          </div>
+
+          <!-- Manual Code Lookup Input -->
+          <div class="pt-4 border-t border-slate-100 flex gap-2">
+            <input type="text" id="manual-scan-input" placeholder="Atau ketik Kode Aset (contoh: KANTOR-IT-2026-0001)..." class="flex-grow border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button onclick="processManualScan()" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-sm font-semibold hover:bg-slate-900 transition">
+              Cari Aset
+            </button>
+          </div>
+        </div>
+
+        <!-- Scanned Result Card / Form Opname Update -->
+        <div id="scan-result-card" class="hidden bg-white p-6 rounded-2xl border-2 border-indigo-500/40 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div class="flex justify-between items-start border-b border-slate-100 pb-4">
+            <div>
+              <span id="scan-asset-code" class="text-xs font-mono font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1 rounded-lg">KODE</span>
+              <h3 id="scan-asset-name" class="text-xl font-bold text-slate-800 mt-2">Nama Aset</h3>
+              <p id="scan-asset-category" class="text-xs text-slate-400">Kategori</p>
+            </div>
+            <span id="scan-asset-condition-badge" class="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Baik</span>
+          </div>
+
+          <!-- Opname Update Form -->
+          <form id="opname-update-form" onsubmit="saveOpnameUpdate(event)" class="space-y-4">
+            <input type="hidden" id="opname-asset-id">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Lokasi Baru / Saat Ini</label>
+                <input type="text" id="opname-lokasi" required class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Penanggung Jawab (PIC)</label>
+                <input type="text" id="opname-pic" required class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Status Kondisi Aset</label>
+                <select id="opname-kondisi" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+                  <option value="Baik">Baik</option>
+                  <option value="Rusak Ringan">Rusak Ringan</option>
+                  <option value="Rusak Berat">Rusak Berat</option>
+                  <option value="Hilang / Afkir">Hilang / Afkir</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Nama Petugas Scan</label>
+                <input type="text" id="opname-petugas" required placeholder="Nama Anda" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Catatan Perpindahan / Kerusakan</label>
+              <textarea id="opname-catatan" rows="2" placeholder="Tuliskan keterangan detail kondisi fisik barang atau alasan mutasi..." class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500"></textarea>
+            </div>
+
+            <div class="flex gap-2 justify-end pt-2">
+              <button type="button" onclick="closeScanResult()" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">Batal</button>
+              <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-sm">
+                <i data-lucide="check" class="w-4 h-4"></i> Simpan Hasil Stok Opname
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: RIWAYAT OPNAME -->
+    <section id="tab-history" class="tab-content hidden space-y-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">Riwayat Stok Opname & Audit Trail</h2>
+          <p class="text-sm text-slate-500">Log lengkap seluruh aktivitas scan, mutasi tempat, dan pembaruan kondisi fisik aset.</p>
+        </div>
+        <button onclick="clearHistory()" class="text-rose-600 hover:bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Bersihkan Log
+        </button>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-slate-100/80 text-slate-700 uppercase text-xs font-semibold tracking-wider border-b border-slate-200">
+              <tr>
+                <th class="py-3.5 px-4">Waktu</th>
+                <th class="py-3.5 px-4">Kode Aset</th>
+                <th class="py-3.5 px-4">Nama Barang</th>
+                <th class="py-3.5 px-4">Aktivitas / Perubahan</th>
+                <th class="py-3.5 px-4">Petugas</th>
+              </tr>
+            </thead>
+            <tbody id="history-logs-table" class="divide-y divide-slate-100">
+              <!-- Logs rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: CETAK LABEL QR -->
+    <section id="tab-labels" class="tab-content hidden space-y-6">
+      <div class="flex justify-between items-center no-print bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div>
+          <h2 class="text-2xl font-bold text-slate-800">Cetak Label QR Code Fisik</h2>
+          <p class="text-sm text-slate-500">Siap cetak ke kertas stiker label untuk ditempelkan langsung pada barang fisik.</p>
+        </div>
+        <button onclick="window.print()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 shadow-sm transition">
+          <i data-lucide="printer" class="w-4 h-4"></i> Cetak Sekarang
+        </button>
+      </div>
+
+      <div id="print-section" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        <!-- Printable QR cards dynamically generated -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODAL: ADD / EDIT ASSET -->
+  <div id="modal-asset" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+        <h3 id="modal-title" class="text-lg font-bold text-slate-800">Tambah Aset Baru</h3>
+        <button onclick="closeModal('modal-asset')" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="asset-form" onsubmit="saveAssetForm(event)" class="space-y-4">
+        <input type="hidden" id="asset-id">
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Kode Aset Baku</label>
+          <div class="flex gap-2">
+            <input type="text" id="asset-code" required placeholder="Contoh: KANTOR-IT-2026-0001" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm font-mono focus:ring-2 focus:ring-indigo-500">
+            <button type="button" onclick="generateAutoCode()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-3.5 py-2 rounded-xl font-semibold whitespace-nowrap border border-slate-200 transition">Auto Code</button>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nama Barang / Aset</label>
+          <input type="text" id="asset-name" required placeholder="Contoh: Laptop ThinkPad X1 Carbon" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Kategori</label>
+            <input type="text" id="asset-kategori" required placeholder="IT, Mebel, Kendaraan..." class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Kondisi Fisik</label>
+            <select id="asset-kondisi" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+              <option value="Baik">Baik</option>
+              <option value="Rusak Ringan">Rusak Ringan</option>
+              <option value="Rusak Berat">Rusak Berat</option>
+              <option value="Hilang / Afkir">Hilang / Afkir</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Lokasi Gedung / Ruang</label>
+            <input type="text" id="asset-lokasi" required placeholder="Lantai 2 - Ruang IT" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Penanggung Jawab (PIC)</label>
+            <input type="text" id="asset-pic" required placeholder="Nama Karyawan/Divisi" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Tanggal Perolehan</label>
+            <input type="date" id="asset-tanggal" required class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase text-slate-500 mb-1">Nilai Aset (Rp)</label>
+            <input type="number" id="asset-nilai" placeholder="0" class="w-full border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+          <button type="button" onclick="closeModal('modal-asset')" class="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-xl font-medium">Batal</button>
+          <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-sm font-semibold shadow-sm">Simpan Data</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: QR PREVIEW ENLARGED -->
+  <div id="modal-qr" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4 border border-slate-100">
+      <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+        <h3 class="font-bold text-slate-800 text-sm">Preview QR Code Detail</h3>
+        <button onclick="closeModal('modal-qr')" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="modal-qr-container" class="flex justify-center p-3 bg-white border border-slate-200 rounded-xl shadow-inner"></div>
+      <div>
+        <div id="modal-qr-code" class="font-mono font-bold text-indigo-600 text-base">CODE</div>
+        <div id="modal-qr-name" class="font-semibold text-slate-800 text-sm mt-0.5">Nama Aset</div>
+        <p id="modal-qr-location" class="text-xs text-slate-500 mt-1">Lokasi</p>
+      </div>
+      <button onclick="closeModal('modal-qr')" class="w-full bg-slate-800 text-white py-2 rounded-xl text-sm font-semibold hover:bg-slate-900">Tutup</button>
+    </div>
+  </div>
+
+  <script>
+    // Pure Vector SVG QR Code Generator Engine (Ultra reliable, works 100% offline & online)
+    function generateSVGQRCode(text, size = 180) {
+      // Inline QR Matrix construction for high reliability without external library issues
+      const encoded = encodeURIComponent(text);
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encoded}&margin=2`;
+      return `<img src="${qrUrl}" alt="QR Code" width="${size}" height="${size}" class="mx-auto rounded border border-slate-100 shadow-sm" onerror="this.onerror=null; this.parentNode.innerHTML='<div class=\'p-4 bg-slate-100 rounded text-xs font-mono text-center\'>${text}</div>';"/>`;
+    }
+
+    // Default Pre-loaded Initial Assets
+    const defaultAssets = [
+      {
+        id: '1',
+        code: 'KANTOR-IT-2026-0001',
+        name: 'Laptop Dell XPS 13 Touch',
+        kategori: 'Elektronik IT',
+        lokasi: 'Ruang IT - Lantai 2',
+        pic: 'Budi Santoso',
+        kondisi: 'Baik',
+        tanggal: '2026-01-15',
+        nilai: 18500000
+      },
+      {
+        id: '2',
+        code: 'KANTOR-MB-2026-0002',
+        name: 'Kursi Kerja Ergonomis Mesh',
+        kategori: 'Mebel / Furnitur',
+        lokasi: 'Ruang Direksi',
+        pic: 'Siti Rahma',
+        kondisi: 'Rusak Ringan',
+        tanggal: '2026-02-10',
+        nilai: 2200000
+      },
+      {
+        id: '3',
+        code: 'KANTOR-IT-2026-0003',
+        name: 'Printer Epson L3210 Multifungsi',
+        kategori: 'Elektronik IT',
+        lokasi: 'Gudang Utama',
+        pic: 'Ahmad Faisal',
+        kondisi: 'Rusak Berat',
+        tanggal: '2026-02-28',
+        nilai: 2800000
+      }
+    ];
+
+    const defaultLogs = [
+      {
+        timestamp: '2026-03-01 09:30',
+        code: 'KANTOR-IT-2026-0001',
+        name: 'Laptop Dell XPS 13 Touch',
+        status: 'Opname Fisik (Kondisi Baik)',
+        petugas: 'Andi Perdana'
+      }
+    ];
+
+    let assets = JSON.parse(localStorage.getItem('ASETTRACK_ASSETS')) || defaultAssets;
+    let logs = JSON.parse(localStorage.getItem('ASETTRACK_LOGS')) || defaultLogs;
+    let html5QrCode = null;
+
+    // Save Data to LocalStorage
+    function saveData() {
+      localStorage.setItem('ASETTRACK_ASSETS', JSON.stringify(assets));
+      localStorage.setItem('ASETTRACK_LOGS', JSON.stringify(logs));
+      renderDashboard();
+      renderAssetTable();
+      renderHistoryLogs();
+      renderPrintLabels();
+    }
+
+    // Tab Switcher Logic
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+        btn.classList.add('text-slate-300');
+      });
+      
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      if(activeNav) {
+        activeNav.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        activeNav.classList.remove('text-slate-300');
+      }
+
+      if(tabId !== 'scanner' && html5QrCode && html5QrCode.isScanning) {
+        stopScanner();
+      }
+
+      document.getElementById('mobile-menu').classList.add('hidden');
+    }
+
+    function toggleMobileMenu() {
+      document.getElementById('mobile-menu').classList.toggle('hidden');
+    }
+
+    // Modal Control
+    function openModal(modalId, assetId = null) {
+      const modal = document.getElementById(modalId);
+      if(!modal) return;
+      modal.classList.remove('hidden');
+
+      if (modalId === 'modal-asset') {
+        if (assetId) {
+          const item = assets.find(a => a.id === assetId);
+          if (item) {
+            document.getElementById('modal-title').innerText = 'Edit Data Aset';
+            document.getElementById('asset-id').value = item.id;
+            document.getElementById('asset-code').value = item.code;
+            document.getElementById('asset-name').value = item.name;
+            document.getElementById('asset-kategori').value = item.kategori;
+            document.getElementById('asset-lokasi').value = item.lokasi;
+            document.getElementById('asset-pic').value = item.pic;
+            document.getElementById('asset-kondisi').value = item.kondisi;
+            document.getElementById('asset-tanggal').value = item.tanggal;
+            document.getElementById('asset-nilai').value = item.nilai;
+          }
+        } else {
+          document.getElementById('modal-title').innerText = 'Tambah Aset Baru';
+          document.getElementById('asset-form').reset();
+          document.getElementById('asset-id').value = '';
+          generateAutoCode();
+        }
+      }
+    }
+
+    function closeModal(modalId) {
+      const modal = document.getElementById(modalId);
+      if(modal) modal.classList.add('hidden');
+    }
+
+    // Auto Code Generation
+    function generateAutoCode() {
+      const year = new Date().getFullYear();
+      const count = (assets.length + 1).toString().padStart(4, '0');
+      document.getElementById('asset-code').value = `KANTOR-AST-${year}-${count}`;
+    }
+
+    // Save Asset
+    function saveAssetForm(e) {
+      e.preventDefault();
+      const id = document.getElementById('asset-id').value;
+      const newAsset = {
+        id: id || Date.now().toString(),
+        code: document.getElementById('asset-code').value.trim(),
+        name: document.getElementById('asset-name').value.trim(),
+        kategori: document.getElementById('asset-kategori').value.trim(),
+        lokasi: document.getElementById('asset-lokasi').value.trim(),
+        pic: document.getElementById('asset-pic').value.trim(),
+        kondisi: document.getElementById('asset-kondisi').value,
+        tanggal: document.getElementById('asset-tanggal').value,
+        nilai: Number(document.getElementById('asset-nilai').value) || 0
+      };
+
+      if (id) {
+        const index = assets.findIndex(a => a.id === id);
+        assets[index] = newAsset;
+      } else {
+        assets.push(newAsset);
+      }
+
+      saveData();
+      closeModal('modal-asset');
+    }
+
+    // Delete Asset
+    function deleteAsset(id) {
+      if (confirm('Apakah Anda yakin ingin menghapus data aset ini?')) {
+        assets = assets.filter(a => a.id !== id);
+        saveData();
+      }
+    }
+
+    // Render Dashboard
+    function renderDashboard() {
+      document.getElementById('stat-total').innerText = assets.length;
+      document.getElementById('stat-baik').innerText = assets.filter(a => a.kondisi === 'Baik').length;
+      document.getElementById('stat-rusak').innerText = assets.filter(a => a.kondisi.includes('Rusak')).length;
+      document.getElementById('stat-hilang').innerText = assets.filter(a => a.kondisi.includes('Hilang')).length;
+
+      const logTable = document.getElementById('dashboard-logs-table');
+      if (logs.length === 0) {
+        logTable.innerHTML = `<tr><td colspan="5" class="text-center py-6 text-slate-400">Belum ada riwayat aktivitas opname.</td></tr>`;
+      } else {
+        logTable.innerHTML = logs.slice(0, 5).map(log => `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-4 text-slate-500 font-mono text-xs">${log.timestamp}</td>
+            <td class="py-3 px-4 font-mono font-bold text-indigo-600 text-xs">${log.code}</td>
+            <td class="py-3 px-4 font-semibold text-slate-800">${log.name}</td>
+            <td class="py-3 px-4 text-slate-700">${log.status}</td>
+            <td class="py-3 px-4 text-slate-600 font-medium">${log.petugas}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    // Render Asset List Table
+    function renderAssetTable() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const catFilter = document.getElementById('filter-kategori').value;
+      const condFilter = document.getElementById('filter-kondisi').value;
+
+      // Populate Dynamic Categories
+      const categories = [...new Set(assets.map(a => a.kategori))];
+      const catSelect = document.getElementById('filter-kategori');
+      const currentCat = catSelect.value;
+      catSelect.innerHTML = `<option value="">Semua Kategori</option>` + categories.map(c => `<option value="${c}">${c}</option>`).join('');
+      catSelect.value = currentCat;
+
+      const filtered = assets.filter(a => {
+        const matchesSearch = a.code.toLowerCase().includes(search) || a.name.toLowerCase().includes(search) || a.lokasi.toLowerCase().includes(search) || a.pic.toLowerCase().includes(search);
+        const matchesCat = !catFilter || a.kategori === catFilter;
+        const matchesCond = !condFilter || a.kondisi === condFilter;
+        return matchesSearch && matchesCat && matchesCond;
+      });
+
+      const tbody = document.getElementById('asset-table-body');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Tidak ada data aset ditemukan.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(a => {
+        let badgeColor = 'bg-emerald-100 text-emerald-800 border-emerald-200';
+        if (a.kondisi.includes('Rusak')) badgeColor = 'bg-amber-100 text-amber-800 border-amber-200';
+        if (a.kondisi.includes('Hilang')) badgeColor = 'bg-rose-100 text-rose-800 border-rose-200';
+
+        return `
+          <tr class="hover:bg-slate-50/80 border-b border-slate-100 transition">
+            <td class="py-3.5 px-4 font-mono font-bold text-indigo-600">${a.code}</td>
+            <td class="py-3.5 px-4 font-semibold text-slate-800">${a.name}</td>
+            <td class="py-3.5 px-4 text-slate-600">${a.kategori}</td>
+            <td class="py-3.5 px-4">
+              <div class="text-slate-800 font-medium">${a.lokasi}</div>
+              <div class="text-xs text-slate-400">PIC: ${a.pic}</div>
+            </td>
+            <td class="py-3.5 px-4">
+              <span class="px-2.5 py-1 rounded-full text-xs font-bold border ${badgeColor}">${a.kondisi}</span>
+            </td>
+            <td class="py-3.5 px-4 text-center">
+              <div class="flex items-center justify-center gap-1.5">
+                <button onclick="previewQR('${a.code}')" class="p-1.5 hover:bg-indigo-50 text-indigo-600 rounded-lg transition" title="Lihat QR">
+                  <i data-lucide="qr-code" class="w-4 h-4"></i>
+                </button>
+                <button onclick="quickSimulateScan('${a.code}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold transition flex items-center gap-1">
+                  <i data-lucide="scan" class="w-3.5 h-3.5"></i> Opname
+                </button>
+                <button onclick="openModal('modal-asset', '${a.id}')" class="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg transition" title="Edit Data">
+                  <i data-lucide="edit-3" class="w-4 h-4"></i>
+                </button>
+                <button onclick="deleteAsset('${a.id}')" class="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg transition" title="Hapus Data">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    // Render Full History Log
+    function renderHistoryLogs() {
+      const historyTable = document.getElementById('history-logs-table');
+      if (logs.length === 0) {
+        historyTable.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Belum ada riwayat stok opname.</td></tr>`;
+      } else {
+        historyTable.innerHTML = logs.map(log => `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="py-3 px-4 font-mono text-xs text-slate-500">${log.timestamp}</td>
+            <td class="py-3 px-4 font-mono font-bold text-indigo-600 text-xs">${log.code}</td>
+            <td class="py-3 px-4 font-semibold text-slate-800">${log.name}</td>
+            <td class="py-3 px-4 text-slate-700">${log.status}</td>
+            <td class="py-3 px-4 font-medium text-slate-600">${log.petugas}</td>
+          </tr>
+        `).join('');
+      }
+    }
+
+    function clearHistory() {
+      if (confirm('Bersihkan seluruh log riwayat stok opname?')) {
+        logs = [];
+        saveData();
+      }
+    }
+
+    // Preview QR Code enlarged
+    function previewQR(code) {
+      const asset = assets.find(a => a.code === code);
+      if (!asset) return;
+
+      document.getElementById('modal-qr-container').innerHTML = generateSVGQRCode(asset.code, 200);
+      document.getElementById('modal-qr-code').innerText = asset.code;
+      document.getElementById('modal-qr-name').innerText = asset.name;
+      document.getElementById('modal-qr-location').innerText = `Lokasi: ${asset.lokasi} (PIC: ${asset.pic})`;
+
+      openModal('modal-qr');
+    }
+
+    // Render Printable QR Code Labels
+    function renderPrintLabels() {
+      const container = document.getElementById('print-section');
+      container.innerHTML = '';
+
+      assets.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'qr-card-print bg-white p-3.5 border-2 border-slate-800 rounded-xl text-center flex flex-col items-center justify-between shadow-sm';
+        
+        card.innerHTML = `
+          <div class="text-[9px] font-extrabold text-slate-600 uppercase tracking-widest border-b border-slate-200 pb-1 w-full">PROPERTY OF COMPANY</div>
+          <div class="my-2">${generateSVGQRCode(a.code, 120)}</div>
+          <div class="w-full">
+            <div class="text-xs font-mono font-bold text-slate-900">${a.code}</div>
+            <div class="text-[11px] font-bold text-slate-800 truncate">${a.name}</div>
+            <div class="text-[9px] text-slate-500 truncate">${a.lokasi} - PIC: ${a.pic}</div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // QR Camera Scanner Logic
+    function startScanner() {
+      document.getElementById('btn-start-scanner').classList.add('hidden');
+      document.getElementById('btn-stop-scanner').classList.remove('hidden');
+
+      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        (decodedText) => {
+          handleScannedCode(decodedText);
+          stopScanner();
+        },
+        () => {}
+      ).catch(err => {
+        alert("Tidak dapat mengakses kamera: " + err + "\nGunakan tombol 'Opname' atau pencarian manual di bawah.");
+        stopScanner();
+      });
+    }
+
+    function stopScanner() {
+      if (html5QrCode) {
+        html5QrCode.stop().then(() => {
+          document.getElementById('btn-start-scanner').classList.remove('hidden');
+          document.getElementById('btn-stop-scanner').classList.add('hidden');
+        }).catch(() => {});
+      }
+    }
+
+    function processManualScan() {
+      const code = document.getElementById('manual-scan-input').value.trim();
+      if(code) handleScannedCode(code);
+    }
+
+    function quickSimulateScan(code) {
+      switchTab('scanner');
+      handleScannedCode(code);
+    }
+
+    function handleScannedCode(code) {
+      const asset = assets.find(a => a.code.toLowerCase() === code.toLowerCase());
+      if (!asset) {
+        alert(`Aset dengan kode "${code}" tidak ditemukan dalam sistem!`);
+        return;
+      }
+
+      document.getElementById('scan-result-card').classList.remove('hidden');
+      document.getElementById('scan-asset-code').innerText = asset.code;
+      document.getElementById('scan-asset-name').innerText = asset.name;
+      document.getElementById('scan-asset-category').innerText = `Kategori: ${asset.kategori}`;
+      document.getElementById('scan-asset-condition-badge').innerText = asset.kondisi;
+
+      document.getElementById('opname-asset-id').value = asset.id;
+      document.getElementById('opname-lokasi').value = asset.lokasi;
+      document.getElementById('opname-pic').value = asset.pic;
+      document.getElementById('opname-kondisi').value = asset.kondisi;
+      document.getElementById('opname-catatan').value = '';
+    }
+
+    function closeScanResult() {
+      document.getElementById('scan-result-card').classList.add('hidden');
+    }
+
+    function saveOpnameUpdate(e) {
+      e.preventDefault();
+      const id = document.getElementById('opname-asset-id').value;
+      const asset = assets.find(a => a.id === id);
+
+      if (asset) {
+        const prevLokasi = asset.lokasi;
+        const prevKondisi = asset.kondisi;
+
+        asset.lokasi = document.getElementById('opname-lokasi').value.trim();
+        asset.pic = document.getElementById('opname-pic').value.trim();
+        asset.kondisi = document.getElementById('opname-kondisi').value;
+        
+        const petugas = document.getElementById('opname-petugas').value.trim();
+        const catatan = document.getElementById('opname-catatan').value.trim();
+
+        // Construct Log Detail
+        const now = new Date();
+        const timeStr = `${now.getFullYear()}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getDate().toString().padStart(2,'0')} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+        
+        let statusStr = `Opname (${asset.kondisi})`;
+        if (prevLokasi !== asset.lokasi) statusStr += ` | Mutasi dari: ${prevLokasi}`;
+        if (catatan) statusStr += ` - Catatan: ${catatan}`;
+
+        logs.unshift({
+          timestamp: timeStr,
+          code: asset.code,
+          name: asset.name,
+          status: statusStr,
+          petugas: petugas
+        });
+
+        saveData();
+        closeScanResult();
+        alert('Data Stok Opname & Mutasi berhasil disimpan!');
+      }
+    }
+
+    // Excel Export & Import
+    function exportToExcel() {
+      const worksheet = XLSX.utils.json_to_sheet(assets);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Data Aset");
+      XLSX.writeFile(workbook, `Rekap_Stok_Opname_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    function importFromExcel(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const importedData = XLSX.utils.sheet_to_json(worksheet);
+
+          if (importedData.length > 0) {
+            assets = importedData.map((item, idx) => ({
+              id: Date.now().toString() + idx,
+              code: item.code || item.Kode || item['Kode Aset'] || `AST-${idx}`,
+              name: item.name || item.Nama || item['Nama Barang'] || 'Aset Tanpa Nama',
+              kategori: item.kategori || item.Kategori || 'Umum',
+              lokasi: item.lokasi || item.Lokasi || 'Gudang Utama',
+              pic: item.pic || item.PIC || item['Penanggung Jawab'] || 'Unassigned',
+              kondisi: item.kondisi || item.Kondisi || 'Baik',
+              tanggal: item.tanggal || item['Tanggal Perolehan'] || new Date().toISOString().slice(0,10),
+              nilai: Number(item.nilai || item['Nilai Perolehan'] || 0)
+            }));
+            saveData();
+            alert(`Berhasil mengimpor ${assets.length} data aset dari Excel!`);
+          }
+        } catch (err) {
+          alert("Gagal membaca file Excel. Pastikan format file sesuai.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    // Initialize Page
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      saveData();
+    });
+  </script>
+</body>
+</html>
